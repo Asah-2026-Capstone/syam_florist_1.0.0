@@ -1,0 +1,237 @@
+// Skema database Syam Florist v0.1 (PRD Bab 10): 10 tabel, 11 enum, relasi dan indeks.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+}
+
+enum Category {
+  BUKET_MAWAR
+  BUKET_LILI
+  BUKET_UANG
+  KARANGAN_PAPAN
+  STANDING_FLOWER
+  DEKORASI_ACARA
+}
+
+enum Occasion {
+  WISUDA
+  SIDANG
+  PERNIKAHAN
+  ULANG_TAHUN
+  DUKA
+  GRAND_OPENING
+  UMUM
+}
+
+enum OrderType {
+  PRODUK
+  CUSTOM
+}
+
+enum FulfillmentMethod {
+  AMBIL_TOKO
+  DIANTAR
+}
+
+enum PaymentStatus {
+  MENUNGGU_PEMBAYARAN
+  DP
+  LUNAS
+}
+
+enum OrderStatus {
+  MENUNGGU_KONFIRMASI
+  DIPROSES
+  SELESAI
+  DIBATALKAN
+}
+
+enum OrderSource {
+  ONLINE
+  MANUAL
+}
+
+enum PaymentMethod {
+  TRANSFER
+  TUNAI
+  QRIS
+}
+
+enum WaStatus {
+  TERKIRIM
+  GAGAL
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Product {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  category    Category
+  occasions   Occasion[]
+  price       Int
+  description String     @db.Text
+  imageUrls   String[]
+  isAvailable Boolean    @default(true)
+  isPublished Boolean    @default(true)
+  soldCount   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  orders      Order[]
+  orderItems  OrderItem[]
+
+  @@index([category])
+  @@index([isPublished, isAvailable])
+}
+
+model Order {
+  id                  String            @id @default(cuid())
+  code                String            @unique
+  type                OrderType
+  source              OrderSource       @default(ONLINE)
+  productId           String?
+  product             Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productNameSnapshot String
+  quantity            Int               @default(1)
+  unitPrice           Int               @default(0)
+  totalPrice          Int               @default(0)
+  amountPaid          Int               @default(0)
+  customBaseCategory  Category?
+  customFlowerType    String?
+  customColor         String?
+  customShape         String?
+  customNotes         String?           @db.Text
+  referenceText       String?           @db.Text
+  referenceImageUrls  String[]
+  customerName        String
+  customerPhone       String
+  pickupDate          DateTime
+  pickupTime          String
+  method              FulfillmentMethod
+  deliveryAddress     String?           @db.Text
+  cardMessage         String?           @db.VarChar(200)
+  paymentMethod       PaymentMethod     @default(TRANSFER)
+  paymentStatus       PaymentStatus     @default(MENUNGGU_PEMBAYARAN)
+  orderStatus         OrderStatus       @default(MENUNGGU_KONFIRMASI)
+  adminNote           String?           @db.Text
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  paymentProofs       PaymentProof[]
+  statusLogs          OrderStatusLog[]
+  waLogs              WhatsappLog[]
+  items               OrderItem[]
+  review              Review?
+
+  @@index([paymentStatus])
+  @@index([orderStatus])
+  @@index([pickupDate])
+  @@index([createdAt])
+  @@index([customerPhone])
+}
+
+// Rincian produk pada pesanan siap jadi multi-produk. Kolom produk di Order menjadi ringkasan.
+model OrderItem {
+  id                  String   @id @default(cuid())
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId           String?
+  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productNameSnapshot String
+  quantity            Int
+  unitPrice           Int
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model PaymentProof {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  imageUrl   String
+  amount     Int
+  transferAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model OrderStatusLog {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromValue String
+  toValue   String
+  actor     String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model WhatsappLog {
+  id        String   @id @default(cuid())
+  orderId   String?
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  target    String
+  message   String   @db.Text
+  status    WaStatus
+  attempt   Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// Ulasan pelanggan: hanya dari pesanan yang sudah Selesai, tampil di beranda setelah disetujui admin
+model Review {
+  id           String   @id @default(cuid())
+  orderId      String?  @unique
+  order        Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  customerName String
+  rating       Int
+  comment      String   @db.Text
+  isPublished  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([isPublished, createdAt])
+}
+
+model AiQueryLog {
+  id         String   @id @default(cuid())
+  ipHash     String
+  question   String
+  success    Boolean
+  durationMs Int
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Setting {
+  id          String   @id @default("default")
+  bankName    String   @default("Bank BCA")
+  accountNo   String
+  accountName String   @default("Syam Florist")
+  dpPercent   Int      @default(50)
+  shopAddress String
+  openHours   String
+  updatedAt   DateTime @updatedAt
+}
