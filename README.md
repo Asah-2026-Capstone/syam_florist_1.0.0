@@ -22,15 +22,15 @@ syam v.01/
 │   ├── seed.ts                # admin, data toko, produk dummy, contoh pesanan
 │   └── seed-data.ts
 ├── src/
-│   ├── server.ts              # titik masuk
-│   ├── app.ts                 # konfigurasi Express (helmet, CORS, JSON, router)
-│   ├── config/env.ts          # validasi .env
-│   ├── lib/                   # prisma client, format respons, error, slug, aturan pesanan
-│   ├── middleware/            # requireAdmin (JWT), error handler
-│   ├── validators/            # skema Zod tiap endpoint
-│   ├── controllers/           # auth, product, order
-│   └── routes/                # public.routes.ts, admin.routes.ts
-└── docs/diagram/              # use case, activity diagram, ERD (.drawio)
+    ├── server.ts              # titik masuk
+    ├── app.ts                 # konfigurasi Express (helmet, CORS, JSON, router)
+    ├── config/env.ts          # validasi .env
+    ├── lib/                   # prisma client, format respons, error, slug, aturan pesanan
+    ├── middleware/            # requireAdmin (JWT), error handler
+    ├── validators/            # skema Zod tiap endpoint
+    ├── controllers/           # auth, product, order
+    └── routes/                # public.routes.ts, admin.routes.ts
+
 ```
 
 Alur satu permintaan: **route → (requireAdmin) → controller → validator Zod → Prisma → PostgreSQL**,
